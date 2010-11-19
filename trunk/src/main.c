@@ -1,5 +1,4 @@
-/* example_c_decode_file - Simple FLAC file decoder using libFLAC
- * Copyright (C) 2007  Josh Coalson
+/* Tryout FLAC decoder for STM32F103RET setup.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -16,31 +15,74 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
 
-/*
- * This example shows how to use libFLAC to decode a FLAC file to a WAVE
- * file.  It only supports 16-bit stereo files.
- *
- * Complete API documentation can be found at:
- *   http://flac.sourceforge.net/api/
- */
-
-#if HAVE_CONFIG_H
-#  include <config.h>
-#endif
-
+#include <stm32f10x.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include "FLAC/stream_decoder.h"
+
+#ifdef __GNUC__
+  /* With GCC/RAISONANCE, small printf (option LD Linker->Libraries->Small printf
+     set to 'Yes') calls __io_putchar() */
+  #define PUTCHAR_PROTOTYPE int __io_putchar(int ch)
+#else
+  #define PUTCHAR_PROTOTYPE int fputc(int ch, FILE *f)
+#endif /* __GNUC__ */
 
 static FLAC__StreamDecoderWriteStatus write_callback(const FLAC__StreamDecoder *decoder, const FLAC__Frame *frame, const FLAC__int32 * const buffer[], void *client_data);
 static void metadata_callback(const FLAC__StreamDecoder *decoder, const FLAC__StreamMetadata *metadata, void *client_data);
 static void error_callback(const FLAC__StreamDecoder *decoder, FLAC__StreamDecoderErrorStatus status, void *client_data);
 
+/**
+ * RCC configuration.
+ */
+void RCC_configure(void)
+{
+    //TODO
+}
+
+/**
+ * GPIO configuration.
+ */
+void GPIO_configure(void)
+{
+    // TODO
+}
+
+/**
+ * Send character
+ *
+ * @param data	Data to send
+ */
+static inline
+void sendByte(uint8_t data)
+{
+
+}
+
+/**
+  * Retarget the C library printf function to the USART.
+  */
+PUTCHAR_PROTOTYPE
+{
+	USART3->DR = ch;	// clears TXE bit
+
+	// wait for transmission to complete
+	// TXE=1 -> data transfered to shift register
+	// TC=1 -> transmission complete
+	while ((USART3->SR & USART_FLAG_TXE) == RESET);
+
+    return ch;
+}
+
+#ifdef TO_PORT
 static FLAC__uint64 total_samples = 0;
 static unsigned sample_rate = 0;
 static unsigned channels = 0;
 static unsigned bps = 0;
 
+/**
+ *
+ */
 static FLAC__bool write_little_endian_uint16(FILE *f, FLAC__uint16 x)
 {
 	return
@@ -49,11 +91,17 @@ static FLAC__bool write_little_endian_uint16(FILE *f, FLAC__uint16 x)
 	;
 }
 
+/**
+ *
+ */
 static FLAC__bool write_little_endian_int16(FILE *f, FLAC__int16 x)
 {
 	return write_little_endian_uint16(f, (FLAC__uint16)x);
 }
 
+/**
+ *
+ */
 static FLAC__bool write_little_endian_uint32(FILE *f, FLAC__uint32 x)
 {
 	return
@@ -63,9 +111,25 @@ static FLAC__bool write_little_endian_uint32(FILE *f, FLAC__uint32 x)
 		fputc(x >> 24, f) != EOF
 	;
 }
+#endif
 
+/**
+ * Main.
+ */
 int main(int argc, char *argv[])
 {
+	// init system
+	SystemInit();
+	RCC_configure();
+	GPIO_configure();
+
+    //TODO
+    // setup UART, LEDs, SDIO, I2S, etc
+
+    // loop forever, just handle IRQs
+	while(1);
+
+#ifdef TO_PORT
 	FLAC__bool ok = true;
 	FLAC__StreamDecoder *decoder = 0;
 	FLAC__StreamDecoderInitStatus init_status;
@@ -103,10 +167,14 @@ int main(int argc, char *argv[])
 
 	FLAC__stream_decoder_delete(decoder);
 	fclose(fout);
-
+#endif
 	return 0;
 }
 
+#ifdef TO_PORT
+/**
+ *
+ */
 FLAC__StreamDecoderWriteStatus write_callback(const FLAC__StreamDecoder *decoder, const FLAC__Frame *frame, const FLAC__int32 * const buffer[], void *client_data)
 {
 	FILE *f = (FILE*)client_data;
@@ -159,6 +227,9 @@ FLAC__StreamDecoderWriteStatus write_callback(const FLAC__StreamDecoder *decoder
 	return FLAC__STREAM_DECODER_WRITE_STATUS_CONTINUE;
 }
 
+/**
+ *
+ */
 void metadata_callback(const FLAC__StreamDecoder *decoder, const FLAC__StreamMetadata *metadata, void *client_data)
 {
 	(void)decoder, (void)client_data;
@@ -174,17 +245,17 @@ void metadata_callback(const FLAC__StreamDecoder *decoder, const FLAC__StreamMet
 		fprintf(stderr, "sample rate    : %u Hz\n", sample_rate);
 		fprintf(stderr, "channels       : %u\n", channels);
 		fprintf(stderr, "bits per sample: %u\n", bps);
-#ifdef _MSC_VER
-		fprintf(stderr, "total samples  : %I64u\n", total_samples);
-#else
 		fprintf(stderr, "total samples  : %llu\n", total_samples);
-#endif
 	}
 }
 
+/**
+ * 
+ */
 void error_callback(const FLAC__StreamDecoder *decoder, FLAC__StreamDecoderErrorStatus status, void *client_data)
 {
 	(void)decoder, (void)client_data;
 
 	fprintf(stderr, "Got error callback: %s\n", FLAC__StreamDecoderErrorStatusString[status]);
 }
+#endif
