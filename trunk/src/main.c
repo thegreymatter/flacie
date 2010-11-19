@@ -28,6 +28,11 @@
   #define PUTCHAR_PROTOTYPE int fputc(int ch, FILE *f)
 #endif /* __GNUC__ */
 
+static FLAC__StreamDecoderReadStatus read_callback(const FLAC__StreamDecoder *decoder, FLAC__byte buffer[], size_t *bytes, void *client_data);
+static FLAC__StreamDecoderSeekStatus seek_callback(const FLAC__StreamDecoder *decoder, FLAC__uint64 absolute_byte_offset, void *client_data);
+static FLAC__StreamDecoderTellStatus tell_callback(const FLAC__StreamDecoder *decoder, FLAC__uint64 *absolute_byte_offset, void *client_data);
+static FLAC__StreamDecoderLengthStatus length_callback(const FLAC__StreamDecoder *decoder, FLAC__uint64 *stream_length, void *client_data);
+static FLAC__bool eof_callback(const FLAC__StreamDecoder *decoder, void *client_data);
 static FLAC__StreamDecoderWriteStatus write_callback(const FLAC__StreamDecoder *decoder, const FLAC__Frame *frame, const FLAC__int32 * const buffer[], void *client_data);
 static void metadata_callback(const FLAC__StreamDecoder *decoder, const FLAC__StreamMetadata *metadata, void *client_data);
 static void error_callback(const FLAC__StreamDecoder *decoder, FLAC__StreamDecoderErrorStatus status, void *client_data);
@@ -118,6 +123,10 @@ static FLAC__bool write_little_endian_uint32(FILE *f, FLAC__uint32 x)
  */
 int main(int argc, char *argv[])
 {
+    FLAC__bool ok = true;
+	FLAC__StreamDecoder* decoder = 0;
+	FLAC__StreamDecoderInitStatus init_status;
+
 	// init system
 	SystemInit();
 	RCC_configure();
@@ -126,57 +135,93 @@ int main(int argc, char *argv[])
     //TODO
     // setup UART, LEDs, SDIO, I2S, etc
 
-    // loop forever, just handle IRQs
-	while(1);
-
-#ifdef TO_PORT
-	FLAC__bool ok = true;
-	FLAC__StreamDecoder *decoder = 0;
-	FLAC__StreamDecoderInitStatus init_status;
-	FILE *fout;
-
-	if(argc != 3) {
-		fprintf(stderr, "usage: %s infile.flac outfile.wav\n", argv[0]);
-		return 1;
-	}
-
-	if((fout = fopen(argv[2], "wb")) == NULL) {
-		fprintf(stderr, "ERROR: opening %s for output\n", argv[2]);
-		return 1;
-	}
-
+    // setup decoder
 	if((decoder = FLAC__stream_decoder_new()) == NULL) {
 		fprintf(stderr, "ERROR: allocating decoder\n");
-		fclose(fout);
 		return 1;
 	}
 
-	(void)FLAC__stream_decoder_set_md5_checking(decoder, true);
+    // is this needed?
+	FLAC__stream_decoder_set_md5_checking(decoder, true);
 
-	init_status = FLAC__stream_decoder_init_file(decoder, argv[1], write_callback, metadata_callback, error_callback, /*client_data=*/fout);
-	if(init_status != FLAC__STREAM_DECODER_INIT_STATUS_OK) {
+    // init decoder
+    void* client_data = 0;  //TODO
+	init_status = FLAC__stream_decoder_init_stream(decoder, 
+        read_callback,
+        seek_callback,
+        tell_callback,
+        length_callback,
+        eof_callback,
+        write_callback, 
+        metadata_callback,
+        error_callback,
+        client_data);
+	if (init_status != FLAC__STREAM_DECODER_INIT_STATUS_OK) {
 		fprintf(stderr, "ERROR: initializing decoder: %s\n", FLAC__StreamDecoderInitStatusString[init_status]);
 		ok = false;
 	}
 
-	if(ok) {
+	if (ok) {
 		ok = FLAC__stream_decoder_process_until_end_of_stream(decoder);
 		fprintf(stderr, "decoding: %s\n", ok? "succeeded" : "FAILED");
 		fprintf(stderr, "   state: %s\n", FLAC__StreamDecoderStateString[FLAC__stream_decoder_get_state(decoder)]);
 	}
 
-	FLAC__stream_decoder_delete(decoder);
-	fclose(fout);
-#endif
+    // loop forever, just handle IRQs
+	while(1);
+     
+    // never called but usefull to know
+    //FLAC__stream_decoder_delete(decoder);
+    
 	return 0;
 }
 
-#ifdef TO_PORT
+/**
+ *
+ */
+FLAC__StreamDecoderReadStatus read_callback(const FLAC__StreamDecoder *decoder, FLAC__byte buffer[], size_t *bytes, void *client_data)
+{
+    //TODO
+}
+
+/**
+ *
+ */
+FLAC__StreamDecoderSeekStatus seek_callback(const FLAC__StreamDecoder *decoder, FLAC__uint64 absolute_byte_offset, void *client_data)
+{
+    //TODO
+}
+
+/**
+ *
+ */
+FLAC__StreamDecoderTellStatus tell_callback(const FLAC__StreamDecoder *decoder, FLAC__uint64 *absolute_byte_offset, void *client_data)
+{
+    //TODO
+}
+
+/**
+ *
+ */
+FLAC__StreamDecoderLengthStatus length_callback(const FLAC__StreamDecoder *decoder, FLAC__uint64 *stream_length, void *client_data)
+{
+    //TODO
+}
+
+/**
+ *
+ */
+FLAC__bool eof_callback(const FLAC__StreamDecoder *decoder, void *client_data)
+{
+    //TODO
+}
+
 /**
  *
  */
 FLAC__StreamDecoderWriteStatus write_callback(const FLAC__StreamDecoder *decoder, const FLAC__Frame *frame, const FLAC__int32 * const buffer[], void *client_data)
 {
+#ifdef TO_PORT
 	FILE *f = (FILE*)client_data;
 	const FLAC__uint32 total_size = (FLAC__uint32)(total_samples * channels * (bps/8));
 	size_t i;
@@ -223,7 +268,7 @@ FLAC__StreamDecoderWriteStatus write_callback(const FLAC__StreamDecoder *decoder
 			return FLAC__STREAM_DECODER_WRITE_STATUS_ABORT;
 		}
 	}
-
+#endif
 	return FLAC__STREAM_DECODER_WRITE_STATUS_CONTINUE;
 }
 
@@ -232,6 +277,7 @@ FLAC__StreamDecoderWriteStatus write_callback(const FLAC__StreamDecoder *decoder
  */
 void metadata_callback(const FLAC__StreamDecoder *decoder, const FLAC__StreamMetadata *metadata, void *client_data)
 {
+#ifdef TO_PORT
 	(void)decoder, (void)client_data;
 
 	/* print some stats */
@@ -247,6 +293,7 @@ void metadata_callback(const FLAC__StreamDecoder *decoder, const FLAC__StreamMet
 		fprintf(stderr, "bits per sample: %u\n", bps);
 		fprintf(stderr, "total samples  : %llu\n", total_samples);
 	}
+#endif
 }
 
 /**
@@ -254,8 +301,9 @@ void metadata_callback(const FLAC__StreamDecoder *decoder, const FLAC__StreamMet
  */
 void error_callback(const FLAC__StreamDecoder *decoder, FLAC__StreamDecoderErrorStatus status, void *client_data)
 {
+#ifdef TO_PORT
 	(void)decoder, (void)client_data;
 
 	fprintf(stderr, "Got error callback: %s\n", FLAC__StreamDecoderErrorStatusString[status]);
-}
 #endif
+}
