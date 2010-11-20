@@ -29,10 +29,6 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#if HAVE_CONFIG_H
-#  include <config.h>
-#endif
-
 #include <stdio.h>
 #include <stdlib.h> /* for qsort() */
 #include <string.h> /* for memset() */
@@ -49,22 +45,11 @@
 #endif
 #define min(a,b) ((a)<(b)?(a):(b))
 
-/* adjust for compilers that can't understand using LLU suffix for uint64_t literals */
-#ifdef _MSC_VER
-#define FLAC__U64L(x) x
-#else
 #define FLAC__U64L(x) x##LLU
-#endif
 
 /* VERSION should come from configure */
 FLAC_API const char *FLAC__VERSION_STRING = VERSION;
-
-#if defined _MSC_VER || defined __BORLANDC__ || defined __MINW32__
-/* yet one more hack because of MSVC6: */
-FLAC_API const char *FLAC__VENDOR_STRING = "reference libFLAC 1.2.1 20070917";
-#else
 FLAC_API const char *FLAC__VENDOR_STRING = "reference libFLAC " VERSION " 20070917";
-#endif
 
 FLAC_API const FLAC__byte FLAC__STREAM_SYNC_STRING[4] = { 'f','L','a','C' };
 FLAC_API const unsigned FLAC__STREAM_SYNC = 0x664C6143;

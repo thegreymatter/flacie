@@ -29,10 +29,6 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#if HAVE_CONFIG_H
-#  include <config.h>
-#endif
-
 #include "private/memory.h"
 #include "FLAC/assert.h"
 #include "share/alloc.h"
@@ -186,36 +182,3 @@ FLAC__bool FLAC__memory_alloc_aligned_unsigned_array(unsigned elements, unsigned
 		return true;
 	}
 }
-
-#ifndef FLAC__INTEGER_ONLY_LIBRARY
-
-FLAC__bool FLAC__memory_alloc_aligned_real_array(unsigned elements, FLAC__real **unaligned_pointer, FLAC__real **aligned_pointer)
-{
-	FLAC__real *pu; /* unaligned pointer */
-	union { /* union needed to comply with C99 pointer aliasing rules */
-		FLAC__real *pa; /* aligned pointer */
-		void       *pv; /* aligned pointer alias */
-	} u;
-
-	FLAC__ASSERT(elements > 0);
-	FLAC__ASSERT(0 != unaligned_pointer);
-	FLAC__ASSERT(0 != aligned_pointer);
-	FLAC__ASSERT(unaligned_pointer != aligned_pointer);
-
-	if((size_t)elements > SIZE_MAX / sizeof(*pu)) /* overflow check */
-		return false;
-
-	pu = (FLAC__real*)FLAC__memory_alloc_aligned(sizeof(*pu) * elements, &u.pv);
-	if(0 == pu) {
-		return false;
-	}
-	else {
-		if(*unaligned_pointer != 0)
-			free(*unaligned_pointer);
-		*unaligned_pointer = pu;
-		*aligned_pointer = u.pa;
-		return true;
-	}
-}
-
-#endif
