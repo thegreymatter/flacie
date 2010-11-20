@@ -1,6 +1,3 @@
-#if HAVE_CONFIG_H
-#  include <config.h>
-#endif
 
 #include <stdlib.h>		/* for malloc() */
 #include <string.h>		/* for memcpy() */
