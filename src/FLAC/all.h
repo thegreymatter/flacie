@@ -40,7 +40,7 @@
 #include "metadata.h"
 #include "ordinals.h"
 #include "stream_decoder.h"
-#include "stream_encoder.h"
+//#include "stream_encoder.h"
 
 /** \mainpage
  *

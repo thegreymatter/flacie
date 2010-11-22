@@ -46,12 +46,6 @@ void FLAC__lpc_restore_signal(const FLAC__int32 residual[], unsigned data_len, c
 	FLAC__int32 sum;
 	const FLAC__int32 *r = residual, *history;
 
-#ifdef FLAC__OVERFLOW_DETECT_VERBOSE
-	fprintf(stderr,"FLAC__lpc_restore_signal: data_len=%d, order=%u, lpq=%d",data_len,order,lp_quantization);
-	for(i=0;i<order;i++)
-		fprintf(stderr,", q[%u]=%d",i,qlp_coeff[i]);
-	fprintf(stderr,"\n");
-#endif
 	FLAC__ASSERT(order > 0);
 
 	for(i = 0; i < data_len; i++) {
