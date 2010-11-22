@@ -55,16 +55,7 @@
 #endif
 #define max(a,b) ((a)>(b)?(a):(b))
 
-/* adjust for compilers that can't understand using LLU suffix for uint64_t literals */
-#ifdef _MSC_VER
-#define FLAC__U64L(x) x
-#else
 #define FLAC__U64L(x) x##LLU
-#endif
-
-
-/* technically this should be in an "export.c" but this is convenient enough */
-FLAC_API int FLAC_API_SUPPORTS_OGG_FLAC = 0;
 
 /***********************************************************************
  *

@@ -1,4 +1,4 @@
 
-<Project Header="Project 'Cortex FLAC decoder'" Path=".\Cortex FLAC decoder.rprj" Project="Yes" AsyncBuild="" OutputFile="" sate="96" ActiveApp="Cortex FLAC decoder" >
+<Project Header="Project 'Cortex FLAC decoder'" Path=".\Cortex FLAC decoder.rprj" Project="Yes" AsyncBuild="" OutputFile="" sate="98" ActiveApp="Cortex FLAC decoder" >
 	<ApplicationBuild Header="Cortex FLAC decoder" Extern=".\Cortex FLAC decoder.rapp" Path=".\Cortex FLAC decoder.rapp" AsyncBuild="" OutputFile=".\Cortex FLAC decoder.elf" sate="96" />
 </Project>

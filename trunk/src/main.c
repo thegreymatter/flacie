@@ -21,7 +21,7 @@
 #include "FLAC/stream_decoder.h"
 
 #ifdef __GNUC__
-  /* With GCC/RAISONANCE, small printf (option LD Linker->Libraries->Small printf
+  /* With GCC, small printf (option LD Linker->Libraries->Small printf
      set to 'Yes') calls __io_putchar() */
   #define PUTCHAR_PROTOTYPE int __io_putchar(int ch)
 #else
@@ -61,7 +61,10 @@ void GPIO_configure(void)
 static inline
 void sendByte(uint8_t data)
 {
+	USART3->DR = data;
 
+	// wait for transmission to complete
+	while ((USART3->SR & USART_FLAG_TXE) == RESET);
 }
 
 /**
@@ -69,11 +72,9 @@ void sendByte(uint8_t data)
   */
 PUTCHAR_PROTOTYPE
 {
-	USART3->DR = ch;	// clears TXE bit
+	USART3->DR = ch;
 
 	// wait for transmission to complete
-	// TXE=1 -> data transfered to shift register
-	// TC=1 -> transmission complete
 	while ((USART3->SR & USART_FLAG_TXE) == RESET);
 
     return ch;
@@ -141,8 +142,8 @@ int main(int argc, char *argv[])
 		return 1;
 	}
 
-    // is this needed?
-	FLAC__stream_decoder_set_md5_checking(decoder, true);
+    // optional MD5 check. How much cycles does this cost?
+	//FLAC__stream_decoder_set_md5_checking(decoder, true);
 
     // init decoder
     void* client_data = 0;  //TODO
@@ -177,50 +178,60 @@ int main(int argc, char *argv[])
 }
 
 /**
+ * Read data callback. Called when decoder needs more input data.
  *
+ * @param decoder       Decoder instance
+ * @param buffer        Buffer to store read data in
+ * @param bytes         Pointer to size of buffer
+ * @param client_data   Client data set at initilisation
+ *
+ * @return Read status
  */
-FLAC__StreamDecoderReadStatus read_callback(const FLAC__StreamDecoder *decoder, FLAC__byte buffer[], size_t *bytes, void *client_data)
+FLAC__StreamDecoderReadStatus read_callback(const FLAC__StreamDecoder* decoder, FLAC__byte buffer[], size_t* bytes, void* client_data)
 {
-    //TODO
+    // TODO replace with more direct hardware functionality
+#ifdef TODO
+    FILE* file = ((MyClientData*)client_data)->file;
+
+    if (*bytes > 0) 
+    {
+        // read data directly into buffer
+        *bytes = fread(buffer, sizeof(FLAC__byte), *bytes, file);
+        if (ferror(file)) {
+            // read error -> abort
+            return FLAC__STREAM_DECODER_READ_STATUS_ABORT;
+        }
+        else if (*bytes == 0) {
+            // EOF
+            return FLAC__STREAM_DECODER_READ_STATUS_END_OF_STREAM;
+        }
+        else {
+            // OK, continue decoding
+            return FLAC__STREAM_DECODER_READ_STATUS_CONTINUE;
+        }
+    }
+    else {
+        // decoder called but didn't want ay bytes -> abort
+        return FLAC__STREAM_DECODER_READ_STATUS_ABORT;
+    }
+#endif
 }
 
 /**
+ * Write callback. Called when decoder has decoded a single audio frame.
  *
+ * @param decoder       Decoder instance
+ * @param frame         Decoded frame
+ * @param buffer        Array of pointers to decoded channels of data
+ * @param client_data   Client data set at initilisation
+ *
+ * @return Read status
  */
-FLAC__StreamDecoderSeekStatus seek_callback(const FLAC__StreamDecoder *decoder, FLAC__uint64 absolute_byte_offset, void *client_data)
+FLAC__StreamDecoderWriteStatus write_callback(const FLAC__StreamDecoder* decoder, const FLAC__Frame* frame, 
+    const FLAC__int32* const buffer[], void* client_data)
 {
-    //TODO
-}
+    //TODO write to I2S
 
-/**
- *
- */
-FLAC__StreamDecoderTellStatus tell_callback(const FLAC__StreamDecoder *decoder, FLAC__uint64 *absolute_byte_offset, void *client_data)
-{
-    //TODO
-}
-
-/**
- *
- */
-FLAC__StreamDecoderLengthStatus length_callback(const FLAC__StreamDecoder *decoder, FLAC__uint64 *stream_length, void *client_data)
-{
-    //TODO
-}
-
-/**
- *
- */
-FLAC__bool eof_callback(const FLAC__StreamDecoder *decoder, void *client_data)
-{
-    //TODO
-}
-
-/**
- *
- */
-FLAC__StreamDecoderWriteStatus write_callback(const FLAC__StreamDecoder *decoder, const FLAC__Frame *frame, const FLAC__int32 * const buffer[], void *client_data)
-{
 #ifdef TO_PORT
 	FILE *f = (FILE*)client_data;
 	const FLAC__uint32 total_size = (FLAC__uint32)(total_samples * channels * (bps/8));
@@ -273,10 +284,126 @@ FLAC__StreamDecoderWriteStatus write_callback(const FLAC__StreamDecoder *decoder
 }
 
 /**
+ * Seek callback. Called when decoder needs to seek the stream.
  *
+ * @param decoder               Decoder instance
+ * @param absolute_byte_offset  Offset from beginning of stream to seek to
+ * @param client_data           Client data set at initilisation
+ *
+ * @return Seek status
  */
-void metadata_callback(const FLAC__StreamDecoder *decoder, const FLAC__StreamMetadata *metadata, void *client_data)
+FLAC__StreamDecoderSeekStatus seek_callback(const FLAC__StreamDecoder* decoder, FLAC__uint64 absolute_byte_offset, void* client_data)
 {
+    // TODO replace with more direct hardware functionality
+#ifdef TODO
+    FILE *file = ((MyClientData*)client_data)->file;
+
+    if (file == stdin) {
+        // unsupported
+        return FLAC__STREAM_DECODER_SEEK_STATUS_UNSUPPORTED;
+    }
+    else if (fseeko(file, (off_t)absolute_byte_offset, SEEK_SET) < 0) {
+        // seek failed
+        return FLAC__STREAM_DECODER_SEEK_STATUS_ERROR;
+    }
+    else {
+        return FLAC__STREAM_DECODER_SEEK_STATUS_OK;
+    }
+#endif
+}
+
+/**
+ * Tell callback. Called when decoder wants to know current position of stream.
+ *
+ * @param decoder               Decoder instance
+ * @param absolute_byte_offset  Offset from beginning of stream to seek to
+ * @param client_data           Client data set at initilisation
+ *
+ * @return Tell status
+ */
+FLAC__StreamDecoderTellStatus tell_callback(const FLAC__StreamDecoder* decoder, FLAC__uint64* absolute_byte_offset, void* client_data)
+{
+    // TODO replace with more direct hardware functionality
+#ifdef TODO
+    FILE *file = ((MyClientData*)client_data)->file;
+    off_t pos;
+
+    if (file == stdin) {
+        // unsupported
+        return FLAC__STREAM_DECODER_TELL_STATUS_UNSUPPORTED;
+    }
+    else if ((pos = ftello(file)) < 0) {
+        // seek failed
+        return FLAC__STREAM_DECODER_TELL_STATUS_ERROR;
+    }
+    else {
+        // update offset
+        *absolute_byte_offset = (FLAC__uint64)pos;
+        return FLAC__STREAM_DECODER_TELL_STATUS_OK;
+    }
+#endif
+}
+
+/**
+ * Length callback. Called when decoder wants total length of stream.
+ *
+ * @param decoder        Decoder instance
+ * @param stream_length  Total length of stream in bytes
+ * @param client_data    Client data set at initilisation
+ *
+ * @return Length status
+ */
+FLAC__StreamDecoderLengthStatus length_callback(const FLAC__StreamDecoder* decoder, FLAC__uint64* stream_length, void* client_data)
+{
+    // TODO replace with more direct hardware functionality
+#ifdef TODO
+    FILE *file = ((MyClientData*)client_data)->file;
+    struct stat filestats;
+
+    if (file == stdin) {
+        // unsupported
+        return FLAC__STREAM_DECODER_LENGTH_STATUS_UNSUPPORTED;
+    }
+    else if (fstat(fileno(file), &filestats) != 0) {
+        // failed
+        return FLAC__STREAM_DECODER_LENGTH_STATUS_ERROR;
+    }
+    else {
+        // pass on length
+        *stream_length = (FLAC__uint64)filestats.st_size;
+        return FLAC__STREAM_DECODER_LENGTH_STATUS_OK;
+    }
+#endif
+}
+
+/**
+ * EOF callback. Called when decoder wants to know if end of stream is reached.
+ *
+ * @param decoder       Decoder instance
+ * @param client_data   Client data set at initilisation
+ *
+ * @return True if end of stream
+ */
+FLAC__bool eof_callback(const FLAC__StreamDecoder* decoder, void* client_data)
+{
+    // TODO replace with more direct hardware functionality
+#ifdef TODO
+    FILE *file = ((MyClientData*)client_data)->file;
+    return feof(file)? true : false;
+#endif
+}
+
+/**
+ * Metadata callback. Called when decoder has decoded metadata.
+ *
+ * @param decoder       Decoder instance
+ * @param metadata      Decoded metadata block
+ * @param client_data   Client data set at initilisation
+ */
+void metadata_callback(const FLAC__StreamDecoder* decoder, const FLAC__StreamMetadata* metadata, void* client_data)
+{
+    // TODO
+
 #ifdef TO_PORT
 	(void)decoder, (void)client_data;
 
@@ -297,10 +424,16 @@ void metadata_callback(const FLAC__StreamDecoder *decoder, const FLAC__StreamMet
 }
 
 /**
- * 
+ * Error callback. Called when error occured during decoding.
+ *
+ * @param decoder       Decoder instance
+ * @param status        Error
+ * @param client_data   Client data set at initilisation
  */
-void error_callback(const FLAC__StreamDecoder *decoder, FLAC__StreamDecoderErrorStatus status, void *client_data)
+void error_callback(const FLAC__StreamDecoder* decoder, FLAC__StreamDecoderErrorStatus status, void* client_data)
 {
+    // TODO turn on LED and write to UART
+
 #ifdef TO_PORT
 	(void)decoder, (void)client_data;
 
