@@ -1,0 +1,1 @@
+FLACie is a FLAC decoder implementation for ARM Cortex-M3 controllers. The official FLAC implementation was used as starting point with the intention of making the decoder run on an ARMv7-M core (A.K.A Cortex-M3).
